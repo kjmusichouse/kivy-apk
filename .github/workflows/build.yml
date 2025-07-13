@@ -23,31 +23,33 @@ jobs:
           sudo apt update
           sudo apt install -y zip unzip openjdk-17-jdk python3-pip libffi-dev libssl-dev build-essential ccache libsqlite3-dev
 
-      - name: 🐍 Install Python Dependencies
+      - name: 🐍 Install Python Packages
         run: |
           pip install --upgrade pip
           pip install cython==0.29.36 buildozer
 
-      - name: 📥 Install Android SDK + Accept Licenses
+      - name: 📥 Install Android SDK
         run: |
           mkdir -p "$HOME/android-sdk/cmdline-tools"
           cd "$HOME/android-sdk/cmdline-tools"
-          wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O tools.zip
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O tools.zip
           unzip tools.zip
           mv cmdline-tools latest
 
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+      - name: ✅ Accept Android Licenses
+        run: |
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk --licenses
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk \
             "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: 🔧 Set Buildozer Env
+      - name: ⚙️ Set Environment
         run: |
           echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROIDNDK=$HOME/android-sdk/ndk-bundle" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
 
-      - name: ⚙️ Build APK
+      - name: 🧱 Build APK
         run: |
-          buildozer android debug
+          buildozer -v android debug
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
