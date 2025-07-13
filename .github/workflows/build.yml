@@ -36,23 +36,32 @@ jobs:
           unzip tools.zip
           mv cmdline-tools latest
 
-      - name: ✅ Accept Licenses and Install SDK Components
+      - name: ✅ Manually Accept Licenses
         run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk --licenses
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk \
+          # This will prompt for license acceptance (but in CI, we pipe yes)
+          # For true manual acceptance, you'd need to do this locally first
+          mkdir -p "$HOME/.android"
+          echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e" > "$HOME/.android/licenses.cache"
+          echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$HOME/.android/licenses.cache"
+
+      - name: ⚙️ Install SDK Components
+        run: |
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk \
             "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: 🔧 Set Buildozer Environment Variables
+      - name: 🔧 Set Environment Variables
         run: |
           echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+          echo "ANDROIDNDK=$HOME/android-ndk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/33.0.0:$PATH" >> $GITHUB_ENV
 
       - name: 🛠 Build APK
         run: |
-          buildozer android debug
+          buildozer init
+          buildozer -v android debug
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mcq-app-apk
+          name: app-apk
           path: bin/*.apk
