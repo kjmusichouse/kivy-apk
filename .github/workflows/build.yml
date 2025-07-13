@@ -50,39 +50,39 @@ jobs:
           unzip commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
           
+          # Verify sdkmanager exists
+          ls -la $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager
+          chmod +x $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager
+          
           # Set environment variables
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
-          
-          # Accept licenses and install components
+
+      - name: ✅ Verify Android Tools
+        run: |
+          # Verify tools are accessible
+          which sdkmanager
+          sdkmanager --list
+
+      - name: 🔄 Install Android Components
+        run: |
           yes | sdkmanager --licenses
           sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
           sdkmanager --install "ndk;25.2.9519653"
 
       - name: 🔄 Initialize Python-for-Android
         run: |
-          # Create the exact directory structure buildozer expects
           mkdir -p $GITHUB_WORKSPACE/.buildozer/android/platform
           cd $GITHUB_WORKSPACE/.buildozer/android/platform
-          
-          # Clone python-for-android
           git clone --depth 1 --branch master https://github.com/kivy/python-for-android.git
           cd python-for-android
           pip install -e .
 
       - name: 🏗️ Build APK
         run: |
-          # Update buildozer.spec paths
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
-          
-          # Fix SDK tools path in buildozer configuration
-          mkdir -p ~/.buildozer/android
-          echo "[app]" > ~/.buildozer/android/buildozer.spec
-          echo "android.sdk_path = $ANDROID_HOME" >> ~/.buildozer/android/buildozer.spec
-          
-          # Clean and build
           buildozer android clean
           buildozer android debug
 
