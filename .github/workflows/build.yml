@@ -44,15 +44,16 @@ jobs:
       - name: 📦 Install Android SDK & NDK
         run: |
           # Create proper directory structure
-          mkdir -p $HOME/android-sdk/cmdline-tools/latest
-          cd $HOME/android-sdk/cmdline-tools/latest
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
+          mv cmdline-tools latest
           
           # Verify sdkmanager exists
-          ls -la $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager
-          chmod +x $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager
+          ls -la $HOME/android-sdk/cmdline-tools/latest/bin/
+          chmod +x $HOME/android-sdk/cmdline-tools/latest/bin/*
           
           # Set environment variables
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
@@ -61,14 +62,16 @@ jobs:
 
       - name: ✅ Verify Android Tools
         run: |
-          # Verify tools are accessible
-          which sdkmanager
-          sdkmanager --list
+          echo "Current PATH: $PATH"
+          which sdkmanager || echo "sdkmanager not found!"
+          sdkmanager --list || echo "sdkmanager failed!"
 
       - name: 🔄 Install Android Components
         run: |
           yes | sdkmanager --licenses
-          sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          sdkmanager --install "platform-tools"
+          sdkmanager --install "platforms;android-33"
+          sdkmanager --install "build-tools;33.0.0"
           sdkmanager --install "ndk;25.2.9519653"
 
       - name: 🔄 Initialize Python-for-Android
