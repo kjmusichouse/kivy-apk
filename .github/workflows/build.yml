@@ -1,0 +1,38 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK using Buildozer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clone repo
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: 🛠 Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y buildozer python3-pip zip unzip git
+          pip install --upgrade pip
+          pip install buildozer
+
+      - name: 📦 Build APK
+        run: |
+          sudo apt install -y libzip-dev openjdk-17-jdk
+          buildozer -v android debug
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: mcq-app-apk
+          path: bin/*.apk
