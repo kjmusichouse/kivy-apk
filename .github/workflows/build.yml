@@ -33,7 +33,7 @@ jobs:
           mv temp/cmdline-tools 9.0
           rm -rf temp cmdline-tools.zip
           echo "sdk.dir=$HOME/android-sdk" > local.properties
-          yes | $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          yes | $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses --verbose
           $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --sdk_root=$HOME/android-sdk \
             "platform-tools" "platforms;android-33" "build-tools;36.0.0" "ndk;25.2.9519653"
       - name: 🧹 Clear Buildozer Cache
@@ -69,6 +69,7 @@ jobs:
           $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --version
           cat buildozer.spec
       - name: 📤 Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mcq-test-app
