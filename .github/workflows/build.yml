@@ -27,7 +27,7 @@ jobs:
         cmdline-tools-version: '9477386'  # Version 9.0, compatible with Java 11
         accept-android-sdk-licenses: true
         log-accepted-android-sdk-licenses: true
-        packages: 'platform-tools build-tools;33.0.2 platforms;android-33 ndk;25.2.9519653'
+        packages: 'platform-tools build-tools;36.0.0 platforms;android-33 ndk;25.2.9519653'
     - name: Set Android SDK environment variables
       run: |
         echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
@@ -35,34 +35,40 @@ jobs:
         echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
         echo "$ANDROID_HOME/cmdline-tools/9.0/bin" >> $GITHUB_PATH
         echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+    - name: Re-accept SDK licenses
+      run: |
+        yes | $ANDROID_HOME/cmdline-tools/9.0/bin/sdkmanager --licenses
     - name: Clear Buildozer cache
       run: |
         rm -rf ~/.buildozer .buildozer
     - name: Update buildozer.spec
       run: |
-        # Remove any existing android.sdk_path entries to avoid duplicates
+        # Remove existing settings to avoid duplicates
         sed -i '/android.sdk_path/d' buildozer.spec
-        # Add correct android.sdk_path
-        echo "android.sdk_path = /usr/local/lib/android/sdk" >> buildozer.spec
-        # Update other settings, ensuring no duplicates
         sed -i '/android.ndk_path/d' buildozer.spec
-        echo "android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653" >> buildozer.spec
         sed -i '/android.api/d' buildozer.spec
-        echo "android.api = 33" >> buildozer.spec
         sed -i '/android.ndk/d' buildozer.spec
-        echo "android.ndk = 25.2.9519653" >> buildozer.spec
         sed -i '/requirements/d' buildozer.spec
-        echo "requirements = python3,kivy==2.3.0,pyjnius" >> buildozer.spec
         sed -i '/android.accept_sdk_license/d' buildozer.spec
+        sed -i '/android.build_tools/d' buildozer.spec
+        # Add updated settings
+        echo "android.sdk_path = /usr/local/lib/android/sdk" >> buildozer.spec
+        echo "android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653" >> buildozer.spec
+        echo "android.api = 33" >> buildozer.spec
+        echo "android.ndk = 25.2.9519653" >> buildozer.spec
+        echo "requirements = python3,kivy==2.3.0,pyjnius" >> buildozer.spec
         echo "android.accept_sdk_license = True" >> buildozer.spec
+        echo "android.build_tools = 36.0.0" >> buildozer.spec
     - name: Build APK with Buildozer
       run: |
         buildozer -v android debug
-    - name: Debug SDK and Java
+    - name: Debug SDK and AIDL
       if: failure()
       run: |
         java -version
         echo $ANDROID_HOME
         ls -la $ANDROID_HOME/cmdline-tools
+        ls -la $ANDROID_HOME/build-tools
         $ANDROID_HOME/cmdline-tools/9.0/bin/sdkmanager --version
+        find $ANDROID_HOME -name aidl
         cat buildozer.spec
