@@ -1,27 +1,46 @@
-[app]
-title = MCQ Test App
-package.name = mcqapp
-package.domain = org.kivy
-source.dir = .
-source.main = main.py
-source.include_exts = py,png,jpg,kv,atlas,json,txt
+name: Build APK with Buildozer
 
-version = 1.0
-orientation = portrait
-fullscreen = 0
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-# Requirements (add 'pillow' if you're using images)
-requirements = python3,kivy,requests,pillow
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
+    steps:
+    - name: 📥 Checkout repo
+      uses: actions/checkout@v4
 
-# Optional icons (uncomment only if files exist)
-# icon.filename = data/icon.png
-# presplash.filename = data/splash.png
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
 
-# Needed for GitHub Actions
-android.sdk_path = $HOME/.buildozer/android/platform/android-sdk
+    - name: 📦 Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y libncurses5 unzip zip openjdk-17-jdk python3-pip git build-essential
+        pip install --upgrade pip Cython==0.29.33 buildozer
 
-[buildozer]
-log_level = 2
-warn_on_root = 0
+    - name: 🔧 Prepare Android SDK manually
+      run: |
+        mkdir -p ~/.buildozer/android/platform
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-*.zip -d ~/.buildozer/android/platform/
+        mv ~/.buildozer/android/platform/cmdline-tools ~/.buildozer/android/platform/cmdline-tools-temp
+        mkdir -p ~/.buildozer/android/platform/cmdline-tools/latest
+        mv ~/.buildozer/android/platform/cmdline-tools-temp/* ~/.buildozer/android/platform/cmdline-tools/latest/
+        yes | ~/.buildozer/android/platform/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/.buildozer/android/platform/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+        yes | ~/.buildozer/android/platform/cmdline-tools/latest/bin/sdkmanager --licenses
+
+    - name: 🏗️ Build APK
+      run: |
+        buildozer -v android debug
+
+    - name: 📤 Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcq-app-apk
+        path: bin/*.apk
