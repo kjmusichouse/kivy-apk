@@ -44,12 +44,11 @@ jobs:
       - name: 📦 Install Android SDK & NDK
         run: |
           # Create proper directory structure
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
+          mkdir -p $HOME/android-sdk/cmdline-tools/latest
+          cd $HOME/android-sdk/cmdline-tools/latest
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
-          mv cmdline-tools latest
           
           # Set environment variables
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
@@ -57,9 +56,9 @@ jobs:
           echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
           
           # Accept licenses and install components
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+          yes | sdkmanager --licenses
+          sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          sdkmanager --install "ndk;25.2.9519653"
 
       - name: 🔄 Initialize Python-for-Android
         run: |
@@ -71,15 +70,17 @@ jobs:
           git clone --depth 1 --branch master https://github.com/kivy/python-for-android.git
           cd python-for-android
           pip install -e .
-          
-          # Verify the directory exists
-          ls -la $GITHUB_WORKSPACE/.buildozer/android/platform/python-for-android
 
       - name: 🏗️ Build APK
         run: |
           # Update buildozer.spec paths
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
+          
+          # Fix SDK tools path in buildozer configuration
+          mkdir -p ~/.buildozer/android
+          echo "[app]" > ~/.buildozer/android/buildozer.spec
+          echo "android.sdk_path = $ANDROID_HOME" >> ~/.buildozer/android/buildozer.spec
           
           # Clean and build
           buildozer android clean
