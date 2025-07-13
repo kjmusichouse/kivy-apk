@@ -7,7 +7,6 @@ on:
 
 jobs:
   build:
-    name: Build APK using Buildozer
     runs-on: ubuntu-latest
 
     steps:
@@ -19,25 +18,33 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: 🛠 Install system dependencies
+      - name: 🛠 Install dependencies
         run: |
           sudo apt update
           sudo apt install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools build-essential ccache libffi-dev libssl-dev
-
-      - name: 🧰 Install Buildozer
-        run: |
-          pip install --upgrade pip setuptools wheel
+          pip install --upgrade pip
           pip install cython==0.29.36 buildozer
 
-      - name: 🔧 Initialize Buildozer (if missing)
+      - name: 📲 Install Android SDK & Build Tools
         run: |
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
+          mkdir -p "$HOME/android-sdk/cmdline-tools"
+          cd "$HOME/android-sdk/cmdline-tools"
+          wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O tools.zip
+          unzip tools.zip
+          mv cmdline-tools latest
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: 📦 Build APK
+      - name: 🔧 Set environment variables
         run: |
-          buildozer -v android debug
+          echo "export ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "export ANDROIDNDK=$HOME/android-sdk/ndk-bundle" >> $GITHUB_ENV
+          echo "export PATH=$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+          echo "export PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+
+      - name: ⚙️ Build APK
+        run: |
+          buildozer android debug
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
