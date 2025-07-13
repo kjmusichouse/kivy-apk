@@ -36,12 +36,6 @@ jobs:
           unzip tools.zip
           mv cmdline-tools latest
 
-      - name: ✅ Accept Android Licenses
-        run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk --licenses
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.0"
-
       - name: ⚙️ Set Environment
         run: |
           echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
