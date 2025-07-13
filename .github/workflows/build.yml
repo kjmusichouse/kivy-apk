@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Code
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v3
 
       - name: 🐍 Setup Python
@@ -21,14 +21,14 @@ jobs:
       - name: 📦 Install System Dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip libffi-dev libssl-dev build-essential ccache libsqlite3-dev
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip libffi-dev libssl-dev build-essential libsqlite3-dev ccache
 
       - name: 🐍 Install Python Packages
         run: |
           pip install --upgrade pip
           pip install cython==0.29.36 buildozer
 
-      - name: 📥 Install Android SDK
+      - name: 📥 Install Android Commandline Tools
         run: |
           mkdir -p "$HOME/android-sdk/cmdline-tools"
           cd "$HOME/android-sdk/cmdline-tools"
@@ -36,14 +36,20 @@ jobs:
           unzip tools.zip
           mv cmdline-tools latest
 
-      - name: ⚙️ Set Environment
+      - name: ✅ Accept Licenses and Install SDK Components
+        run: |
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk --licenses
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+
+      - name: 🔧 Set Buildozer Environment Variables
         run: |
           echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
 
-      - name: 🧱 Build APK
+      - name: 🛠 Build APK
         run: |
-          buildozer -v android debug
+          buildozer android debug
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
