@@ -34,11 +34,12 @@ jobs:
             unzip \
             ant
 
-      - name: � Install Buildozer & Cython
+      - name: 🧱 Install Buildozer & Dependencies
         run: |
           pip install --upgrade pip
           pip install cython==0.29.36
           pip install buildozer
+          pip install python-for-android
 
       - name: 📦 Install Android SDK & NDK
         run: |
@@ -50,7 +51,7 @@ jobs:
           rm commandlinetools-linux-9477386_latest.zip
           mv cmdline-tools latest
           
-          # Set environment variables (using proper GitHub Actions syntax)
+          # Set environment variables
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
@@ -59,6 +60,20 @@ jobs:
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
           $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
           $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+
+      - name: 🔄 Initialize Python-for-Android
+        run: |
+          # Ensure buildozer directories exist
+          mkdir -p ~/.buildozer/android/platform
+          cd ~/.buildozer/android/platform
+          
+          # Clone python-for-android if not exists
+          if [ ! -d "python-for-android" ]; then
+            git clone https://github.com/kivy/python-for-android.git
+            cd python-for-android
+            git checkout master
+            pip install -e .
+          fi
 
       - name: 🏗️ Build APK
         run: |
