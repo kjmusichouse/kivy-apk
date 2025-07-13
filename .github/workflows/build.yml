@@ -21,7 +21,7 @@ jobs:
     - name: 📦 Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y libncurses5 unzip zip openjdk-17-jdk python3-pip git build-essential
+        sudo apt install -y libncurses5-dev unzip zip openjdk-17-jdk python3-pip git build-essential
         pip install --upgrade pip Cython==0.29.33 buildozer
 
     - name: 🔧 Prepare Android SDK manually
