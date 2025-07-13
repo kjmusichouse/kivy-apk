@@ -1,55 +1,27 @@
-name: Build APK
+[app]
+title = MCQ Test App
+package.name = mcqapp
+package.domain = org.kivy
+source.dir = .
+source.main = main.py
+source.include_exts = py,png,jpg,kv,atlas,json,txt
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+version = 1.0
+orientation = portrait
+fullscreen = 0
 
-jobs:
-  build:
-    name: Build Kivy APK
-    runs-on: ubuntu-latest
+# Requirements (add 'pillow' if you're using images)
+requirements = python3,kivy,requests,pillow
 
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
-      PATH: ${{ github.workspace }}/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.buildozer/android/platform/android-sdk/platform-tools:${{ env.PATH }}
+android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v3
+# Optional icons (uncomment only if files exist)
+# icon.filename = data/icon.png
+# presplash.filename = data/splash.png
 
-      - name: 🐍 Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+# Needed for GitHub Actions
+android.sdk_path = $HOME/.buildozer/android/platform/android-sdk
 
-      - name: 🛠 Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git
-          pip install --upgrade pip
-          pip install Cython buildozer
-
-      - name: 📦 Install Android SDK Command Line Tools
-        run: |
-          mkdir -p .buildozer/android/platform/android-sdk/cmdline-tools
-          cd .buildozer/android/platform/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools-linux-*.zip -d latest
-          cd ../../../../../
-
-      - name: 📄 Accept Licenses and Install SDK Components
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.0"
-
-      - name: 🏗 Build APK
-        run: |
-          buildozer android debug
-
-      - name: 📤 Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: kivy-apk
-          path: bin/*.apk
+[buildozer]
+log_level = 2
+warn_on_root = 0
