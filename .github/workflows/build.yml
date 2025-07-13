@@ -1,75 +1,66 @@
 name: Build APK with Buildozer
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+
       - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: 🗑 Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo apt-get clean
+
       - name: 🛠 Install System Dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-11-jdk python3-pip build-essential libncurses6 libncurses-dev
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip build-essential libncurses5
+
+      - name: 🧱 Install Buildozer & Cython
+        run: |
           pip install --upgrade pip
-          pip install --user cython==0.29.36 buildozer==1.5.0 kivy==2.3.0 pyjnius requests
-      - name: 📦 Install Android Command Line Tools and SDKs
+          pip install cython==0.29.36
+          pip install buildozer
+
+      - name: 📦 Install Android SDK & NDK
         run: |
           mkdir -p $HOME/android-sdk/cmdline-tools
           cd $HOME/android-sdk/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip -d temp
-          mv temp/cmdline-tools 9.0
-          rm -rf temp cmdline-tools.zip
-          echo "sdk.dir=$HOME/android-sdk" > local.properties
-          yes | $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses --verbose
-          $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --sdk_root=$HOME/android-sdk \
-            "platform-tools" "platforms;android-33" "build-tools;36.0.0" "ndk;25.2.9519653"
-      - name: 🧹 Clear Buildozer Cache
-        run: |
-          rm -rf ~/.buildozer .buildozer
-      - name: 🔧 Update buildozer.spec
-        run: |
-          sed -i '/android.sdk_path/d' buildozer.spec
-          sed -i '/android.ndk_path/d' buildozer.spec
-          sed -i '/android.api/d' buildozer.spec
-          sed -i '/android.ndk/d' buildozer.spec
-          sed -i '/android.build_tools/d' buildozer.spec
-          sed -i '/android.accept_sdk_license/d' buildozer.spec
-          echo "android.sdk_path = /home/runner/android-sdk" >> buildozer.spec
-          echo "android.ndk_path = /home/runner/android-sdk/ndk/25.2.9519653" >> buildozer.spec
-          echo "android.api = 33" >> buildozer.spec
-          echo "android.ndk = 25.2.9519653" >> buildozer.spec
-          echo "android.build_tools = 36.0.0" >> buildozer.spec
-          echo "android.accept_sdk_license = True" >> buildozer.spec
+          mv temp/cmdline-tools latest
+          
+          # Accept all licenses
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          
+          # Install required SDK components
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.0" \
+            "ndk;25.2.9519653"
+
       - name: 🏗️ Build APK
         run: |
-          export ANDROIDSDK=$HOME/android-sdk
-          export ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653
-          export PATH=$PATH:$HOME/android-sdk/cmdline-tools/9.0/bin:$HOME/android-sdk/platform-tools
-          buildozer -v android debug
-      - name: 🔍 Debug SDK and AIDL
-        if: failure()
-        run: |
-          java -version
-          echo $ANDROIDSDK
-          ls -la $HOME/android-sdk/build-tools
-          find $HOME/android-sdk -name aidl
-          $HOME/android-sdk/cmdline-tools/9.0/bin/sdkmanager --version
-          cat buildozer.spec
+          export ANDROID_HOME=$HOME/android-sdk
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/33.0.0
+          
+          # Update buildozer.spec with correct paths
+          echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
+          echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
+          
+          # Build the APK
+          buildozer android debug
+
       - name: 📤 Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mcq-test-app
