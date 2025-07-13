@@ -1,56 +1,31 @@
 name: Build APK with Buildozer
-
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: 🛠 Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip build-essential libncurses6 libncurses-dev
-
-      - name: 🧱 Install Buildozer & Cython
-        run: |
-          pip install --upgrade pip
-          pip install cython
-          pip install buildozer
-
-      - name: 📦 Install Android Command Line Tools and SDKs
-        run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip -d temp
-          mv temp/cmdline-tools latest
-          echo "sdk.dir=$HOME/android-sdk" > local.properties
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
-
-      - name: 🏗️ Build APK
-        run: |
-          export ANDROIDSDK=$HOME/android-sdk
-          export ANDROIDNDK=$ANDROIDSDK/ndk/25.2.9519653
-          echo "android.sdk_path = $ANDROIDSDK" >> buildozer.spec
-          echo "android.ndk_path = $ANDROIDNDK" >> buildozer.spec
-          buildozer android debug
-
-      - name: 📤 Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcq-test-app
-          path: bin/*.apk
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zip unzip openjdk-11-jdk python3-pip build-essential libncurses6 libncurses-dev
+        pip install --user buildozer cython
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: 'latest'
+    - name: Accept Android SDK licenses
+      run: |
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+    - name: Install Android platform tools and build tools
+      run: |
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-33"
+    - name: Build APK with Buildozer
+      run: |
+        buildozer android debug
