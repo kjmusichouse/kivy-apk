@@ -40,11 +40,20 @@ jobs:
         rm -rf ~/.buildozer .buildozer
     - name: Update buildozer.spec
       run: |
-        sed -i 's|android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|' buildozer.spec
-        sed -i 's|android.ndk_path =.*|android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653|' buildozer.spec
-        sed -i 's|android.api =.*|android.api = 33|' buildozer.spec
-        sed -i 's|android.ndk =.*|android.ndk = 25.2.9519653|' buildozer.spec
-        sed -i 's|requirements =.*|requirements = python3,kivy==2.3.0,pyjnius|' buildozer.spec
+        # Remove any existing android.sdk_path entries to avoid duplicates
+        sed -i '/android.sdk_path/d' buildozer.spec
+        # Add correct android.sdk_path
+        echo "android.sdk_path = /usr/local/lib/android/sdk" >> buildozer.spec
+        # Update other settings, ensuring no duplicates
+        sed -i '/android.ndk_path/d' buildozer.spec
+        echo "android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653" >> buildozer.spec
+        sed -i '/android.api/d' buildozer.spec
+        echo "android.api = 33" >> buildozer.spec
+        sed -i '/android.ndk/d' buildozer.spec
+        echo "android.ndk = 25.2.9519653" >> buildozer.spec
+        sed -i '/requirements/d' buildozer.spec
+        echo "requirements = python3,kivy==2.3.0,pyjnius" >> buildozer.spec
+        sed -i '/android.accept_sdk_license/d' buildozer.spec
         echo "android.accept_sdk_license = True" >> buildozer.spec
     - name: Build APK with Buildozer
       run: |
@@ -56,3 +65,4 @@ jobs:
         echo $ANDROID_HOME
         ls -la $ANDROID_HOME/cmdline-tools
         $ANDROID_HOME/cmdline-tools/9.0/bin/sdkmanager --version
+        cat buildozer.spec
