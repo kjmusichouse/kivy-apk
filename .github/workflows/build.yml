@@ -49,7 +49,7 @@ jobs:
           unzip -q commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
 
-          # Fix folder structure to expected: cmdline-tools/cmdline-tools/
+          # Fix folder structure
           if [ -d "cmdline-tools" ]; then
             mv cmdline-tools cmdline-tools-temp
             mkdir cmdline-tools
@@ -62,14 +62,16 @@ jobs:
           echo "$HOME/android-sdk/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-      - name: ✅ Verify Android Tools
-        run: |
-          echo "Current PATH: $PATH"
-          which sdkmanager || echo "sdkmanager not found!"
-          sdkmanager --list || echo "sdkmanager failed!"
+          # Export path for current step
+          export PATH="$HOME/android-sdk/cmdline-tools/cmdline-tools/bin:$HOME/android-sdk/platform-tools:$PATH"
 
-      - name: 🔄 Install Android Components
+          # Verify sdkmanager
+          which sdkmanager
+          sdkmanager --version
+
+      - name: 🔄 Accept Licenses & Install Android Components
         run: |
+          export PATH="$HOME/android-sdk/cmdline-tools/cmdline-tools/bin:$HOME/android-sdk/platform-tools:$PATH"
           yes | sdkmanager --licenses
           sdkmanager --install "platform-tools"
           sdkmanager --install "platforms;android-33"
