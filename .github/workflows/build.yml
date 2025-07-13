@@ -48,8 +48,13 @@ jobs:
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
-          mkdir cmdline-tools
-          mv cmdline-tools/* cmdline-tools/
+
+          # Fix folder structure to expected: cmdline-tools/cmdline-tools/
+          if [ -d "cmdline-tools" ]; then
+            mv cmdline-tools cmdline-tools-temp
+            mkdir cmdline-tools
+            mv cmdline-tools-temp cmdline-tools/cmdline-tools
+          fi
 
           # Set environment variables
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
