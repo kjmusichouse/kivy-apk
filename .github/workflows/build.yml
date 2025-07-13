@@ -7,60 +7,47 @@ on:
 
 jobs:
   build:
+    name: Build Kivy APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v3
 
-      - name: 🐍 Setup Python
+      - name: 🐍 Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      - name: 📦 Install System Dependencies
+      - name: 🛠 Install Buildozer and dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip openjdk-17-jdk python3-pip libffi-dev libssl-dev build-essential libsqlite3-dev ccache
-
-      - name: 🐍 Install Python Packages
-        run: |
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip git
           pip install --upgrade pip
-          pip install cython==0.29.36 buildozer
+          pip install buildozer
 
-      - name: 📥 Install Android Commandline Tools
+      - name: 📦 Download & Configure Android SDK (command line tools)
         run: |
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-          cd "$HOME/android-sdk/cmdline-tools"
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O tools.zip
-          unzip tools.zip
-          mv cmdline-tools latest
+          mkdir -p $HOME/.buildozer/android/platform
+          cd $HOME/.buildozer/android/platform
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-*.zip -d cmdline-tools
+          mv cmdline-tools/cmdline-tools cmdline-tools/latest
 
-      - name: ✅ Manually Accept Licenses
-        run: |
-          # This will prompt for license acceptance (but in CI, we pipe yes)
-          # For true manual acceptance, you'd need to do this locally first
-          mkdir -p "$HOME/.android"
-          echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e" > "$HOME/.android/licenses.cache"
-          echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$HOME/.android/licenses.cache"
+          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+          mkdir -p $ANDROID_SDK_ROOT
+          mv cmdline-tools $ANDROID_SDK_ROOT/
 
-      - name: ⚙️ Install SDK Components
-        run: |
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=${HOME}/android-sdk \
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
             "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: 🔧 Set Environment Variables
+      - name: 🏗 Build APK with Buildozer
         run: |
-          echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROIDNDK=$HOME/android-ndk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/33.0.0:$PATH" >> $GITHUB_ENV
-
-      - name: 🛠 Build APK
-        run: |
-          buildozer -v android debug
+          buildozer android debug
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-apk
+          name: kivy-apk-output
           path: bin/*.apk
