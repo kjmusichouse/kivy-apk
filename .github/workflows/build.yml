@@ -63,17 +63,17 @@ jobs:
 
       - name: 🔄 Initialize Python-for-Android
         run: |
-          # Ensure buildozer directories exist
-          mkdir -p ~/.buildozer/android/platform
-          cd ~/.buildozer/android/platform
+          # Create the exact directory structure buildozer expects
+          mkdir -p $GITHUB_WORKSPACE/.buildozer/android/platform
+          cd $GITHUB_WORKSPACE/.buildozer/android/platform
           
-          # Clone python-for-android if not exists
-          if [ ! -d "python-for-android" ]; then
-            git clone https://github.com/kivy/python-for-android.git
-            cd python-for-android
-            git checkout master
-            pip install -e .
-          fi
+          # Clone python-for-android
+          git clone --depth 1 --branch master https://github.com/kivy/python-for-android.git
+          cd python-for-android
+          pip install -e .
+          
+          # Verify the directory exists
+          ls -la $GITHUB_WORKSPACE/.buildozer/android/platform/python-for-android
 
       - name: 🏗️ Build APK
         run: |
