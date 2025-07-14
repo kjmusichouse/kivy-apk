@@ -32,7 +32,7 @@ jobs:
             libssl-dev \
             git \
             ant \
-            wget
+            libsqlite3-dev
 
       - name: 🧱 Install Buildozer & Dependencies
         run: |
@@ -53,36 +53,41 @@ jobs:
 
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
+          echo "ANDROID_TOOLS=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools" >> $GITHUB_ENV
 
-      - name: 🔄 Install Android SDK Components
-        run: |
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+      - name: ✅ Export Android paths
+        run: echo "PATH=$ANDROID_TOOLS:$PATH" >> $GITHUB_ENV
 
-      - name: 🏗️ Patch buildozer.spec
+      - name: 🔄 Install Android Components
         run: |
-          sed -i "s|^android.sdk_path =.*|android.sdk_path = $ANDROID_HOME|" buildozer.spec || echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
-          sed -i "s|^android.ndk_path =.*|android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653|" buildozer.spec || echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
-          sed -i "s|^log_level =.*|log_level = 2|" buildozer.spec || echo "log_level = 2" >> buildozer.spec
+          sdkmanager --sdk_root=$ANDROID_HOME --licenses < <(yes)
+          sdkmanager --sdk_root=$ANDROID_HOME --install "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
-      - name: 🛠 Build APK
+      - name: 🧹 Clean Previous Builds
         run: |
+          rm -f buildozer_build_output.log
+
+      - name: 🏗️ Build APK
+        run: |
+          if ! grep -q "log_level = 2" buildozer.spec; then
+            echo "log_level = 2" >> buildozer.spec
+          fi
+          echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
+          echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
+
           mkdir -p $ANDROID_HOME/tools/bin
           ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager || true
 
           (buildozer android clean && buildozer android debug) &> buildozer_build_output.log || true
 
-      - name: 📤 Upload APK Artifact
-        if: success() || always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcq-test-app
-          path: bin/*.apk
-
-      - name: 📤 Upload Build Log
-        if: success() || always()
+      - name: 📄 Upload Build Log
         uses: actions/upload-artifact@v4
         with:
           name: buildozer-log
           path: buildozer_build_output.log
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcq-test-app
+          path: bin/*.apk
