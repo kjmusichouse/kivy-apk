@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.10.18/x64/bin/buildozer", line 8, in <module>
+    sys.exit(main())
+  File "/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/site-packages/buildozer/scripts/client.py", line 13, in main
+    Buildozer().run_command(sys.argv[1:])
+  File "/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/site-packages/buildozer/__init__.py", line 127, in __init__
+    self.config.read(filename, "utf-8")
+  File "/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/configparser.py", line 699, in read
+    self._read(fp, filename)
+  File "/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/configparser.py", line 1098, in _read
+    raise DuplicateOptionError(sectname, optname,
+configparser.DuplicateOptionError: While reading from 'buildozer.spec' [line 40]: option 'log_level' in section 'buildozer' already exists
