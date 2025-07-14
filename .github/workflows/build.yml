@@ -49,8 +49,8 @@ jobs:
           set -e
           SDK_DIR=$HOME/android-sdk
           mkdir -p $SDK_DIR/cmdline-tools
-          cd $SDK_DIR/cmdline-tools
 
+          cd $SDK_DIR/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
@@ -80,7 +80,7 @@ jobs:
           cd python-for-android
           pip install -e .
 
-      - name: 🏗️ Build APK (with logging)
+      - name: 🏗️ Build APK and Save Log
         run: |
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
@@ -89,9 +89,11 @@ jobs:
           mkdir -p $ANDROID_HOME/tools/bin
           ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager || true
 
-          buildozer android clean
-          buildozer android debug &> buildozer_build_output.log
-        continue-on-error: true
+          (buildozer android clean && buildozer android debug) &> buildozer_build_output.log || true
+
+      - name: 📂 Check if log file exists
+        run: |
+          ls -l buildozer_build_output.log || echo "Log file missing!"
 
       - name: 📤 Upload Build Log (if failed)
         if: failure()
@@ -100,26 +102,27 @@ jobs:
           name: buildozer-debug-log
           path: buildozer_build_output.log
 
-      - name: 📤 Upload .buildozer Folder (if failed)
-        if: failure()
-        run: zip -r buildozer-logs.zip .buildozer || true
-
       - name: 📤 Upload .buildozer Zip (if failed)
+        if: failure()
+        run: |
+          zip -r buildozer-logs.zip .buildozer || true
+        continue-on-error: true
+
+      - name: 📤 Upload Buildozer Logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: buildozer-full-logs
           path: buildozer-logs.zip
 
-      - name: 📝 Commit & Push Log to build-logs Branch
+      - name: 📝 Commit & Push Log to build-logs Branch (if failed)
         if: failure()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           git fetch
-          git checkout -B build-logs
-
+          git checkout -B build-logs || git checkout build-logs
           mkdir -p build-logs/$(date +'%Y-%m-%d_%H-%M-%S')
           cp buildozer_build_output.log build-logs/$(date +'%Y-%m-%d_%H-%M-%S')/
 
