@@ -5,9 +5,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  contents: write  # Required for committing logs to build-logs branch
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -44,86 +41,48 @@ jobs:
           pip install buildozer
           pip install python-for-android
 
-      - name: 📦 Install Android SDK & NDK
+      - name: 📦 Download and Set Up Android SDK
         run: |
-          set -e
-          SDK_DIR=$HOME/android-sdk
-          mkdir -p $SDK_DIR/cmdline-tools
+          ANDROID_HOME=$HOME/android-sdk
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          rm cmdline-tools.zip
+          mv cmdline-tools latest
 
-          cd $SDK_DIR/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip
-          rm commandlinetools-linux-9477386_latest.zip
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
 
-          mkdir -p latest
-          mv cmdline-tools/* latest/
-          rm -rf cmdline-tools
-
-          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
-          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$SDK_DIR/platform-tools" >> $GITHUB_PATH
-
-      - name: 🔄 Accept Licenses & Install Android Components
+      - name: 🔄 Install Android SDK Components
         run: |
-          sdkmanager --licenses <<< "y"
-          sdkmanager --install "platform-tools"
-          sdkmanager --install "platforms;android-33"
-          sdkmanager --install "build-tools;33.0.0"
-          sdkmanager --install "ndk;25.2.9519653"
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
-      - name: 🔄 Initialize Python-for-Android
+      - name: 🏗️ Patch buildozer.spec
         run: |
-          mkdir -p $GITHUB_WORKSPACE/.buildozer/android/platform
-          cd $GITHUB_WORKSPACE/.buildozer/android/platform
-          git clone --depth 1 --branch master https://github.com/kivy/python-for-android.git
-          cd python-for-android
-          pip install -e .
+          sed -i "s|^android.sdk_path =.*|android.sdk_path = $ANDROID_HOME|" buildozer.spec || echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
+          sed -i "s|^android.ndk_path =.*|android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653|" buildozer.spec || echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
+          sed -i "s|^log_level =.*|log_level = 2|" buildozer.spec || echo "log_level = 2" >> buildozer.spec
 
-      - name: 🏗️ Build APK and Save Log
+      - name: 🛠 Build APK
         run: |
-          echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
-          echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
-          echo "log_level = 2" >> buildozer.spec
-
-          # Ensure sdkmanager path is aliased (some tools expect it here)
           mkdir -p $ANDROID_HOME/tools/bin
           ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager || true
 
-          # Run build and capture all logs
           (buildozer android clean && buildozer android debug) &> buildozer_build_output.log || true
 
-      - name: 🔍 Show log preview
-        run: |
-          echo "Log file preview:"
-          tail -n 50 buildozer_build_output.log || echo "❌ Log file missing"
-
-      - name: 📤 Upload Build Log (always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: buildozer-log
-          path: buildozer_build_output.log
-
-      - name: 📤 Upload APK (on success)
-        if: success()
+      - name: 📤 Upload APK Artifact
+        if: success() || always()
         uses: actions/upload-artifact@v4
         with:
           name: mcq-test-app
           path: bin/*.apk
 
-      - name: 📝 Commit Log to build-logs Branch (always)
-        if: always()
-        run: |
-          TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          git fetch
-          git switch -C build-logs
-          mkdir -p logs/$TIMESTAMP
-          cp buildozer_build_output.log logs/$TIMESTAMP/
-
-          git add logs/
-          git commit -m "📦 Build log $TIMESTAMP"
-          git push origin build-logs --force
+      - name: 📤 Upload Build Log
+        if: success() || always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-log
+          path: buildozer_build_output.log
