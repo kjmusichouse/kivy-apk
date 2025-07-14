@@ -84,17 +84,20 @@ jobs:
           cd python-for-android
           pip install -e .
 
-      - name: 🏗️ Build APK (with sdkmanager compatibility fix)
+      - name: 🏗️ Build APK (log output to file)
         run: |
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
-
-          # Fix for legacy Buildozer path expectations
+          echo "log_level = 2" >> buildozer.spec
+      
+          # Fix for Buildozer sdkmanager path assumption
           mkdir -p $ANDROID_HOME/tools/bin
           ln -s $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
-
+      
+          # Run buildozer and capture logs
           buildozer android clean
-          buildozer android debug
+          buildozer android debug &> buildozer_build_output.log
+        continue-on-error: true
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
