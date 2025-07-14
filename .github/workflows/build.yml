@@ -1,16 +1,21 @@
-name: Build APK with Buildozer
+name: Build Kivy APK
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: /home/runner/android-sdk
+      ANDROID_SDK_ROOT: /home/runner/android-sdk
+
     steps:
-      - name: 📥 Checkout Repository
+      - name: 📥 Checkout repo
         uses: actions/checkout@v3
 
       - name: 🐍 Set up Python
@@ -18,76 +23,52 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: 🛠 Install System Dependencies
+      - name: 📦 Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y \
-            zip unzip \
-            openjdk-17-jdk \
-            python3-pip \
-            build-essential \
-            libffi-dev \
-            zlib1g-dev \
-            libncurses6 \
-            libssl-dev \
-            git \
-            ant \
-            libsqlite3-dev
+          python -m pip install --upgrade pip
+          pip install buildozer Cython
 
-      - name: 🧱 Install Buildozer & Dependencies
+      - name: 📦 Download Android Command-Line Tools
         run: |
-          pip install --upgrade pip
-          pip install cython==0.29.36
-          pip install buildozer
-          pip install python-for-android
-
-      - name: 📦 Download and Set Up Android SDK
-        run: |
-          ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME/cmdline-tools
-          cd $ANDROID_HOME/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          rm cmdline-tools.zip
-          mv cmdline-tools latest
+          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
 
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_TOOLS=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools" >> $GITHUB_ENV
-
-      - name: ✅ Export Android paths
-        run: echo "PATH=$ANDROID_TOOLS:$PATH" >> $GITHUB_ENV
-
-      - name: 🔄 Install Android Components
+      - name: 🛠️ Accept licenses and install platform tools
         run: |
-          sdkmanager --sdk_root=$ANDROID_HOME --licenses < <(yes)
-          sdkmanager --sdk_root=$ANDROID_HOME --install "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
-      - name: 🧹 Clean Previous Builds
+      - name: 🧹 Clean Buildozer Cache
         run: |
-          rm -f buildozer_build_output.log
+          rm -rf .buildozer bin
 
-      - name: 🏗️ Build APK
+      - name: 📝 Prepare buildozer.spec
         run: |
-          if ! grep -q "log_level = 2" buildozer.spec; then
-            echo "log_level = 2" >> buildozer.spec
-          fi
+          sed -i '/^log_level/d' buildozer.spec
+          echo "log_level = 2" >> buildozer.spec
+          sed -i '/^android.sdk_path/d' buildozer.spec
+          sed -i '/^android.ndk_path/d' buildozer.spec
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
 
+      - name: 🧪 Build APK
+        run: |
           mkdir -p $ANDROID_HOME/tools/bin
           ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager || true
-
           (buildozer android clean && buildozer android debug) &> buildozer_build_output.log || true
 
-      - name: 📄 Upload Build Log
-        uses: actions/upload-artifact@v4
+      - name: 📤 Upload build log
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: buildozer-log
+          name: buildozer_build_output.log
           path: buildozer_build_output.log
 
       - name: 📤 Upload APK
-        uses: actions/upload-artifact@v4
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: mcq-test-app
+          name: app-debug.apk
           path: bin/*.apk
