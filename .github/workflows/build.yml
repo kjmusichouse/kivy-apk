@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write  # Required for pushing logs to repo
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -44,7 +47,6 @@ jobs:
       - name: 📦 Install Android SDK & NDK
         run: |
           set -e
-
           SDK_DIR=$HOME/android-sdk
           mkdir -p $SDK_DIR/cmdline-tools
           cd $SDK_DIR/cmdline-tools
@@ -64,8 +66,7 @@ jobs:
 
       - name: 🔄 Accept Licenses & Install Android Components
         run: |
-          export PATH="$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH"
-          yes | sdkmanager --licenses
+          sdkmanager --licenses <<< "y"
           sdkmanager --install "platform-tools"
           sdkmanager --install "platforms;android-33"
           sdkmanager --install "build-tools;33.0.0"
@@ -85,35 +86,48 @@ jobs:
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
           echo "log_level = 2" >> buildozer.spec
 
-          # Fix for legacy Buildozer path
           mkdir -p $ANDROID_HOME/tools/bin
-          ln -s $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager || true
 
           buildozer android clean
           buildozer android debug &> buildozer_build_output.log
         continue-on-error: true
 
-      - name: 📤 Upload Build Log (if error)
+      - name: 📤 Upload Build Log (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: buildozer-debug-log
           path: buildozer_build_output.log
 
-      - name: 📤 Upload Full .buildozer Logs (if error)
+      - name: 📤 Upload .buildozer Folder (if failed)
         if: failure()
-        run: |
-          zip -r buildozer-logs.zip .buildozer || true
-        continue-on-error: true
+        run: zip -r buildozer-logs.zip .buildozer || true
 
-      - name: 📤 Upload .buildozer Zip (if error)
+      - name: 📤 Upload .buildozer Zip (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: buildozer-full-logs
           path: buildozer-logs.zip
 
-      - name: 📤 Upload APK (if build succeeded)
+      - name: 📝 Commit & Push Log to build-logs Branch
+        if: failure()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch
+          git checkout -B build-logs
+
+          mkdir -p build-logs/$(date +'%Y-%m-%d_%H-%M-%S')
+          cp buildozer_build_output.log build-logs/$(date +'%Y-%m-%d_%H-%M-%S')/
+
+          git add build-logs
+          git commit -m "📦 Build failed: log from $(date)"
+          git push origin build-logs --force
+
+      - name: 📤 Upload APK (if success)
         if: success()
         uses: actions/upload-artifact@v4
         with:
