@@ -15,33 +15,12 @@
     unzip -q $CMD_TOOLS_ZIP
     rm $CMD_TOOLS_ZIP
 
-    # Debug: List contents after unzip
-    echo "📁 Contents of $SDK_DIR/cmdline-tools after unzip:"
-    ls -la $SDK_DIR/cmdline-tools
-
     # Normalize folder structure
     if [ -d "cmdline-tools" ]; then
       echo "📁 Fixing nested folder structure..."
       mv cmdline-tools cmdline-tools-temp
       mkdir cmdline-tools
-      mv cmdline-tools-temp/* cmdline-tools/
-      rmdir cmdline-tools-temp
-    else
-      echo "📁 No nested cmdline-tools folder found, assuming flat structure."
-      mkdir -p cmdline-tools
-      mv * cmdline-tools/ 2>/dev/null || true
-    fi
-
-    # Debug: List final directory structure
-    echo "📁 Final contents of $SDK_DIR/cmdline-tools:"
-    ls -la $SDK_DIR/cmdline-tools
-    echo "📁 Contents of $SDK_DIR/cmdline-tools/cmdline-tools:"
-    ls -la $SDK_DIR/cmdline-tools/cmdline-tools || echo "❌ Directory not found"
-
-    # Ensure bin directory exists
-    if [ ! -d "$SDK_DIR/cmdline-tools/cmdline-tools/bin" ]; then
-      echo "❌ Bin directory not found at $SDK_DIR/cmdline-tools/cmdline-tools/bin"
-      exit 1
+      mv cmdline-tools-temp cmdline-tools/cmdline-tools
     fi
 
     # Set env vars
@@ -56,8 +35,6 @@
     echo "🧪 Checking sdkmanager..."
     echo "PATH = $PATH"
     ls -la $SDK_DIR/cmdline-tools/cmdline-tools/bin/
-
-    # Verify sdkmanager
     if ! command -v sdkmanager; then
       echo "❌ sdkmanager not found in PATH."
       exit 1
