@@ -43,7 +43,7 @@ jobs:
 
       - name: 📦 Install Android SDK & NDK
         run: |
-          set -e  # stop script on any error
+          set -e
 
           SDK_DIR=$HOME/android-sdk
           CMD_TOOLS_ZIP=commandlinetools-linux-9477386_latest.zip
@@ -58,7 +58,7 @@ jobs:
           unzip -q $CMD_TOOLS_ZIP
           rm $CMD_TOOLS_ZIP
 
-          # Normalize to cmdline-tools/cmdline-tools/
+          # Normalize folder structure to cmdline-tools/cmdline-tools/
           if [ -d "cmdline-tools" ]; then
             echo "📁 Fixing nested folder structure..."
             mv cmdline-tools cmdline-tools-temp
@@ -66,18 +66,24 @@ jobs:
             mv cmdline-tools-temp cmdline-tools/cmdline-tools
           fi
 
-          # Set environment variables for later steps
+          echo "🔧 Setting environment variables..."
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
           echo "$SDK_DIR/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
           echo "$SDK_DIR/platform-tools" >> $GITHUB_PATH
 
-          # Also export them now for immediate use
           export PATH="$SDK_DIR/cmdline-tools/cmdline-tools/bin:$SDK_DIR/platform-tools:$PATH"
 
-          echo "✅ Verifying sdkmanager..."
-          which sdkmanager
-          sdkmanager --version
+          echo "🧪 Verifying sdkmanager..."
+          echo "PATH = $PATH"
+          ls -la $SDK_DIR/cmdline-tools/cmdline-tools/bin/
+          if ! command -v sdkmanager > /dev/null; then
+            echo "❌ sdkmanager not found in PATH."
+            exit 1
+          fi
+
+          sdkmanager --version || { echo "❌ sdkmanager failed to run."; exit 1; }
+          echo "✅ sdkmanager is installed and working."
 
       - name: 🔄 Accept Licenses & Install Android Components
         run: |
