@@ -1,3 +1,79 @@
+name: Build APK with Buildozer
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ env.PATH }}
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 🛠 Install System Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y zip unzip openjdk-17-jdk python3-pip build-essential \
+            libffi-dev zlib1g-dev libncurses6 libssl-dev git ant
+
+      - name: 🧱 Install Buildozer & Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install cython==0.29.36
+          pip install buildozer python-for-android
+
+      - name: 📦 Install Android Command-line Tools
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip
+          rm commandlinetools-linux-9477386_latest.zip
+          mv cmdline-tools latest
+
+      - name: 🔧 Accept Licenses and Install Android SDK/NDK
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+
+      - name: ⚙️ Patch Buildozer.spec
+        run: |
+          echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
+          echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
+          if ! grep -q '^log_level\s*=' buildozer.spec; then echo "log_level = 2" >> buildozer.spec; fi
+
+      - name: 🧪 Build APK (Log Output)
+        run: |
+          mkdir -p $ANDROID_HOME/tools/bin
+          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager || true
+          buildozer android clean && buildozer android debug | tee buildozer_build_output.log
+        continue-on-error: true
+
+      - name: 📤 Upload Build Log
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer_build_output.log
+          path: buildozer_build_output.log
+
+      - name: 📤 Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: bin/*.apk
 name: Build Kivy APK
 
 on:
