@@ -41,7 +41,7 @@ jobs:
           pip install buildozer
           pip install python-for-android
 
-      - name: 📦 Install Android SDK & NDK (Fixed)
+      - name: 📦 Install Android SDK & NDK (Corrected Final Fix)
         run: |
           set -e
 
@@ -52,10 +52,14 @@ jobs:
           echo "📦 Downloading Android command-line tools..."
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
 
-          echo "📂 Unzipping to 'latest'..."
-          mkdir -p latest
-          unzip -q commandlinetools-linux-9477386_latest.zip -d latest
+          echo "📂 Unzipping..."
+          unzip -q commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
+
+          echo "📁 Moving inner folder to 'latest'..."
+          mkdir -p latest
+          mv cmdline-tools/* latest/
+          rm -rf cmdline-tools
 
           echo "🔧 Setting environment variables..."
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
@@ -68,10 +72,11 @@ jobs:
           echo "🧪 Verifying sdkmanager..."
           if ! command -v sdkmanager > /dev/null; then
             echo "❌ sdkmanager not found in PATH."
+            ls -R $SDK_DIR/cmdline-tools
             exit 1
           fi
 
-          sdkmanager --version || { echo "❌ sdkmanager failed to run."; exit 1; }
+          sdkmanager --version
           echo "✅ sdkmanager is installed and working."
 
       - name: 🔄 Accept Licenses & Install Android Components
