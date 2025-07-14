@@ -1,116 +1,68 @@
-name: Build APK with Buildozer
+- name: 📦 Install Android SDK & NDK
+  run: |
+    set -e
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+    SDK_DIR=$HOME/android-sdk
+    CMD_TOOLS_ZIP=commandlinetools-linux-9477386_latest.zip
+    CMD_TOOLS_URL=https://dl.google.com/android/repository/$CMD_TOOLS_ZIP
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+    echo "📦 Downloading Android command-line tools..."
+    mkdir -p $SDK_DIR/cmdline-tools
+    cd $SDK_DIR/cmdline-tools
+    wget -q $CMD_TOOLS_URL
 
-    steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v3
+    echo "📂 Unzipping command-line tools..."
+    unzip -q $CMD_TOOLS_ZIP
+    rm $CMD_TOOLS_ZIP
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    # Debug: List contents after unzip
+    echo "📁 Contents of $SDK_DIR/cmdline-tools after unzip:"
+    ls -la $SDK_DIR/cmdline-tools
 
-      - name: 🛠 Install System Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            zip unzip \
-            openjdk-17-jdk \
-            python3-pip \
-            build-essential \
-            libffi-dev \
-            zlib1g-dev \
-            libncurses6 \
-            libssl-dev \
-            git \
-            ant \
-            wget
+    # Normalize folder structure
+    if [ -d "cmdline-tools" ]; then
+      echo "📁 Fixing nested folder structure..."
+      mv cmdline-tools cmdline-tools-temp
+      mkdir cmdline-tools
+      mv cmdline-tools-temp/* cmdline-tools/
+      rmdir cmdline-tools-temp
+    else
+      echo "📁 No nested cmdline-tools folder found, assuming flat structure."
+      mkdir -p cmdline-tools
+      mv * cmdline-tools/ 2>/dev/null || true
+    fi
 
-      - name: 🧱 Install Buildozer & Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install cython==0.29.36
-          pip install buildozer
-          pip install python-for-android
+    # Debug: List final directory structure
+    echo "📁 Final contents of $SDK_DIR/cmdline-tools:"
+    ls -la $SDK_DIR/cmdline-tools
+    echo "📁 Contents of $SDK_DIR/cmdline-tools/cmdline-tools:"
+    ls -la $SDK_DIR/cmdline-tools/cmdline-tools || echo "❌ Directory not found"
 
-      - name: 📦 Install Android SDK & NDK
-        run: |
-          set -e
+    # Ensure bin directory exists
+    if [ ! -d "$SDK_DIR/cmdline-tools/cmdline-tools/bin" ]; then
+      echo "❌ Bin directory not found at $SDK_DIR/cmdline-tools/cmdline-tools/bin"
+      exit 1
+    fi
 
-          SDK_DIR=$HOME/android-sdk
-          CMD_TOOLS_ZIP=commandlinetools-linux-9477386_latest.zip
-          CMD_TOOLS_URL=https://dl.google.com/android/repository/$CMD_TOOLS_ZIP
+    # Set env vars
+    echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
+    echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
+    echo "$SDK_DIR/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
+    echo "$SDK_DIR/platform-tools" >> $GITHUB_PATH
 
-          echo "📦 Downloading Android command-line tools..."
-          mkdir -p $SDK_DIR/cmdline-tools
-          cd $SDK_DIR/cmdline-tools
-          wget -q $CMD_TOOLS_URL
+    # Temporary export for current shell
+    export PATH="$SDK_DIR/cmdline-tools/cmdline-tools/bin:$SDK_DIR/platform-tools:$PATH"
 
-          echo "📂 Unzipping command-line tools..."
-          unzip -q $CMD_TOOLS_ZIP
-          rm $CMD_TOOLS_ZIP
+    echo "🧪 Checking sdkmanager..."
+    echo "PATH = $PATH"
+    ls -la $SDK_DIR/cmdline-tools/cmdline-tools/bin/
 
-          # Normalize folder structure to cmdline-tools/cmdline-tools/
-          if [ -d "cmdline-tools" ]; then
-            echo "📁 Fixing nested folder structure..."
-            mv cmdline-tools cmdline-tools-temp
-            mkdir cmdline-tools
-            mv cmdline-tools-temp cmdline-tools/cmdline-tools
-          fi
+    # Verify sdkmanager
+    if ! command -v sdkmanager; then
+      echo "❌ sdkmanager not found in PATH."
+      exit 1
+    fi
 
-          echo "🔧 Setting environment variables..."
-          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
-          echo "$SDK_DIR/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
-          echo "$SDK_DIR/platform-tools" >> $GITHUB_PATH
+    sdkmanager --version || { echo "❌ sdkmanager failed to run."; exit 1; }
 
-          export PATH="$SDK_DIR/cmdline-tools/cmdline-tools/bin:$SDK_DIR/platform-tools:$PATH"
-
-          echo "🧪 Verifying sdkmanager..."
-          echo "PATH = $PATH"
-          ls -la $SDK_DIR/cmdline-tools/cmdline-tools/bin/
-          if ! command -v sdkmanager > /dev/null; then
-            echo "❌ sdkmanager not found in PATH."
-            exit 1
-          fi
-
-          sdkmanager --version || { echo "❌ sdkmanager failed to run."; exit 1; }
-          echo "✅ sdkmanager is installed and working."
-
-      - name: 🔄 Accept Licenses & Install Android Components
-        run: |
-          export PATH="$HOME/android-sdk/cmdline-tools/cmdline-tools/bin:$HOME/android-sdk/platform-tools:$PATH"
-          yes | sdkmanager --licenses
-          sdkmanager --install "platform-tools"
-          sdkmanager --install "platforms;android-33"
-          sdkmanager --install "build-tools;33.0.0"
-          sdkmanager --install "ndk;25.2.9519653"
-
-      - name: 🔄 Initialize Python-for-Android
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/.buildozer/android/platform
-          cd $GITHUB_WORKSPACE/.buildozer/android/platform
-          git clone --depth 1 --branch master https://github.com/kivy/python-for-android.git
-          cd python-for-android
-          pip install -e .
-
-      - name: 🏗️ Build APK
-        run: |
-          echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
-          echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
-          buildozer android clean
-          buildozer android debug
-
-      - name: 📤 Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcq-test-app
-          path: bin/*.apk
+    echo "✅ sdkmanager is installed and working."
