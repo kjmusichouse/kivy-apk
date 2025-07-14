@@ -41,7 +41,7 @@ jobs:
           pip install buildozer
           pip install python-for-android
 
-      - name: 📦 Install Android SDK & NDK (Corrected)
+      - name: 📦 Install Android SDK & NDK
         run: |
           set -e
 
@@ -49,19 +49,14 @@ jobs:
           mkdir -p $SDK_DIR/cmdline-tools
           cd $SDK_DIR/cmdline-tools
 
-          echo "📦 Downloading Android cmdline-tools..."
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-
-          echo "📂 Unzipping..."
           unzip -q commandlinetools-linux-9477386_latest.zip
           rm commandlinetools-linux-9477386_latest.zip
 
-          echo "📁 Moving inner folder to 'latest'..."
           mkdir -p latest
           mv cmdline-tools/* latest/
           rm -rf cmdline-tools
 
-          echo "🔧 Setting environment variables..."
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
           echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
@@ -84,22 +79,42 @@ jobs:
           cd python-for-android
           pip install -e .
 
-      - name: 🏗️ Build APK (log output to file)
+      - name: 🏗️ Build APK (with logging)
         run: |
           echo "android.sdk_path = $ANDROID_HOME" >> buildozer.spec
           echo "android.ndk_path = $ANDROID_HOME/ndk/25.2.9519653" >> buildozer.spec
           echo "log_level = 2" >> buildozer.spec
-      
-          # Fix for Buildozer sdkmanager path assumption
+
+          # Fix for legacy Buildozer path
           mkdir -p $ANDROID_HOME/tools/bin
           ln -s $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
-      
-          # Run buildozer and capture logs
+
           buildozer android clean
           buildozer android debug &> buildozer_build_output.log
         continue-on-error: true
 
-      - name: 📤 Upload APK
+      - name: 📤 Upload Build Log (if error)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-debug-log
+          path: buildozer_build_output.log
+
+      - name: 📤 Upload Full .buildozer Logs (if error)
+        if: failure()
+        run: |
+          zip -r buildozer-logs.zip .buildozer || true
+        continue-on-error: true
+
+      - name: 📤 Upload .buildozer Zip (if error)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-full-logs
+          path: buildozer-logs.zip
+
+      - name: 📤 Upload APK (if build succeeded)
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: mcq-test-app
